@@ -17,12 +17,10 @@ class OrthDepthToPointcloud():
         self.ortho_width = rospy.get_param("~ortho_width", 1.0)
         self.depth_image_topic = rospy.get_param("~depth_image_topic", "/vrglasses_for_robots_ros/depth_map")
         self.pointcloud_out_topic = rospy.get_param("~pointcloud_out_topic", "/vrglasses_for_robots_ros/depth_map/points")
-        # self.top_coord_world = rospy.get_param('~top_coord_world', 0.0)
-        # self.bottom_coord_world = rospy.get_param('~bottom_coord_world', 1.0)
-        # self.left_coord_world = rospy.get_param('~left_coord_world', 0.0)
-        # self.right_coord_world = rospy.get_param('~right_coord_world', 1.0)
 
-        # Compute edge coords from ortho width
+
+
+        # Compute edge coords from ortho width 
         self.top_coord_world = None
         self.bottom_coord_world = None
         self.left_coord_world = None
@@ -45,8 +43,10 @@ class OrthDepthToPointcloud():
             # Convert depth image message to OpenCV image
             depth_image = self.bridge.imgmsg_to_cv2(depth_image_msg, desired_encoding="passthrough")
 
-            # Get image size
+            # Get image size 
             img_height, img_width = depth_image.shape
+
+            inv_aspect_ratio = img_height/float(img_width)
 
             # Compute image side coords (corresponds to what is implemented in Vulkan engine)
             height_world_coords = self.ortho_width * (img_height / float(img_width))
@@ -56,46 +56,33 @@ class OrthDepthToPointcloud():
             self.right_coord_world = self.ortho_width / 2.0
 
 
-            # Convert world coordinates to pixel coordinates
-            top_coord_pixel = int((self.top_coord_world / (self.bottom_coord_world - self.top_coord_world)) * img_height)
-            bottom_coord_pixel = int((self.bottom_coord_world / (self.bottom_coord_world - self.top_coord_world)) * img_height)
-            left_coord_pixel = int((self.left_coord_world / (self.right_coord_world - self.left_coord_world)) * img_width)
-            right_coord_pixel = int((self.right_coord_world / (self.right_coord_world - self.left_coord_world)) * img_width)
+            remapped_coords = np.meshgrid(
+                np.linspace(self.left_coord_world, self.right_coord_world, img_width),
+                np.linspace(self.top_coord_world, self.bottom_coord_world, img_height)
+            )
 
-            # Crop the depth image based on pixel coordinates
-            cropped_depth_image = depth_image[top_coord_pixel:bottom_coord_pixel, left_coord_pixel:right_coord_pixel]
+            # Filter out invalid depth values
+            valid_depth_mask = depth_image > 0.0
+            remapped_coords = [coord[valid_depth_mask] for coord in remapped_coords]
+            depth_values = depth_image[valid_depth_mask]
+
+            pointcloud_data = np.column_stack((
+                remapped_coords[0],
+                remapped_coords[1],
+                depth_values
+            ))
+
+            print("Depth values: {}".format(depth_values))
 
             # Create point cloud from the cropped depth image
-            pointcloud = self.create_pointcloud(cropped_depth_image)
+            pointcloud_msg = pc2.create_cloud_xyz32(header=depth_image_msg.header, points=pointcloud_data)
 
             # Publish the point cloud
-            self.publish_pointcloud(pointcloud, depth_image_msg.header)
+            self.publish_pointcloud(pointcloud_msg, depth_image_msg.header)
 
         except Exception as e:
             rospy.logerr("Error processing depth image: {}".format(e))
 
-
-    def create_pointcloud(self, depth_image):
-        # Assuming a simple conversion from depth to point cloud (adjust as needed)
-        # Here, we assume that the depth values directly represent the z-coordinates of the points in the point cloud.
-        # You may need to calibrate this based on your camera specifications.
-
-        # Create a mask for valid depth values
-        valid_depth_mask = depth_image > 0
-
-        # Extract valid depth values and corresponding pixel coordinates
-        valid_depth_values = depth_image[valid_depth_mask]
-        pixel_coords = np.argwhere(valid_depth_mask)
-
-        print("Pixel coords: {}".format(pixel_coords))
-
-        # Create point cloud array with (x, y, z) coordinates
-        pointcloud_data = np.column_stack((pixel_coords[:, 1] + left_coord_pixel, pixel_coords[:, 0] + top_coord_pixel, valid_depth_values))
-
-        # Create PointCloud2 message
-        pointcloud_msg = pc2.create_cloud_xyz32(header=self.header, points=pointcloud_data)
-
-        return pointcloud_msg
 
 
 
