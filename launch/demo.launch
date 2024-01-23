@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+
+    <!-- Start orthographic depth image to pointcloud node -->
+    <node pkg="orthographic_depth_to_pointcloud" type="orthographic_depth_to_pointcloud.py" name="ortho_depth_to_pointcloud" output="screen">
+        <param name="~ortho_width" value="1" />
+        <param name="~depth_image_topic" value="/vrglasses_for_robots_ros/depth_map" />
+        <param name="~pointcloud_out_topic" value="/vrglasses_for_robots_ros/depth_map/points" />
+    </node>
+
+</launch>
