@@ -58,7 +58,8 @@ class OrthDepthToPointcloud():
 
             remapped_coords = np.meshgrid(
                 np.linspace(self.left_coord_world, self.right_coord_world, img_width),
-                np.linspace(self.top_coord_world, self.bottom_coord_world, img_height)
+                # np.linspace(self.top_coord_world, self.bottom_coord_world, img_height)
+                np.linspace(self.bottom_coord_world, self.top_coord_world, img_height)
             )
 
             # Filter out invalid depth values
