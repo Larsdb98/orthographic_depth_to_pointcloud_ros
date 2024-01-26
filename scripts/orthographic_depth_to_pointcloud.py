@@ -73,7 +73,7 @@ class OrthDepthToPointcloud():
                 depth_values
             ))
 
-            print("Depth values: {}".format(depth_values))
+            # print("Depth values: {}".format(depth_values))
 
             # Create point cloud from the cropped depth image
             pointcloud_msg = pc2.create_cloud_xyz32(header=depth_image_msg.header, points=pointcloud_data)
